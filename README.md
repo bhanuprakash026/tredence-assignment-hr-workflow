@@ -8,9 +8,18 @@ A visual workflow builder for designing and simulating HR processes using React 
 # Install dependencies
 npm install
 
-# Start development server
+# Start JSON Server (mock API) in one terminal
+node mock-api/server.js
+
+# Start development server in another terminal
 npm run dev
 ```
+
+**Important:** You need to run both the JSON Server (port 4000) and the Vite dev server (port 8080) for full functionality.
+
+### API Endpoints (JSON Server)
+- `GET http://localhost:4000/automations` - Returns available automation actions
+- `POST http://localhost:4000/simulate` - Accepts workflow JSON and returns execution log
 
 Open [http://localhost:8080](http://localhost:8080) to view the application.
 
@@ -18,8 +27,12 @@ Open [http://localhost:8080](http://localhost:8080) to view the application.
 
 ```
 src/
-├── api/                    # Mock API layer
-│   └── mockApi.ts          # Simulated backend endpoints
+├── api/                    # API layer
+│   ├── mockApi.ts          # Local mock functions (fallback)
+│   └── apiClient.ts        # HTTP client for JSON Server
+├── mock-api/               # JSON Server backend
+│   ├── db.json             # Mock database
+│   └── server.js           # Custom server with /simulate endpoint
 ├── components/
 │   ├── Canvas/             # React Flow canvas wrapper
 │   ├── Nodes/              # Custom node components

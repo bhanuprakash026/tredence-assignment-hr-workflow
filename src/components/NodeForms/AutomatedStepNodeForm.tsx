@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { AutomatedStepNodeData } from '@/types/workflow';
+import React, { useEffect, useState } from 'react';
+import { AutomatedStepNodeData, AutomationAction } from '@/types/workflow';
 import { useWorkflowStore } from '@/hooks/useWorkflowStore';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getAutomationAction } from '@/api/mockApi';
+import { fetchAutomationsFromAPI } from '@/api/apiClient';
+import { Loader2 } from 'lucide-react';
 
 interface AutomatedStepNodeFormProps {
   nodeId: string;
@@ -21,10 +22,36 @@ export const AutomatedStepNodeForm: React.FC<AutomatedStepNodeFormProps> = ({
   nodeId,
   data,
 }) => {
-  const { updateNodeData, automationActions } = useWorkflowStore();
+  const { updateNodeData, automationActions, setAutomationActions } = useWorkflowStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Get the selected action's parameters
-  const selectedAction = getAutomationAction(data.actionId);
+  // Fetch automation actions from API on mount
+  useEffect(() => {
+    console.log('AutomatedStepNodeForm mounted');
+    console.log('Current automationActions:', automationActions);
+
+    // Always fetch to ensure we get latest data from API
+    setIsLoading(true);
+    setError(null);
+    console.log('Fetching automations from API...');
+
+    fetchAutomationsFromAPI()
+      .then((actions) => {
+        console.log('API Response:', actions);
+        setAutomationActions(actions);
+      })
+      .catch((err) => {
+        console.error('API Error:', err);
+        setError('Failed to load actions. Make sure JSON Server is running on port 4000.');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [setAutomationActions]);
+
+  // Get the selected action's parameters from loaded actions
+  const selectedAction = automationActions.find((a) => a.id === data.actionId);
 
   // Initialize actionParams when action changes
   useEffect(() => {
@@ -37,10 +64,10 @@ export const AutomatedStepNodeForm: React.FC<AutomatedStepNodeFormProps> = ({
         updateNodeData(nodeId, { actionParams: initialParams });
       }
     }
-  }, [data.actionId]);
+  }, [data.actionId, selectedAction]);
 
   const handleActionChange = (actionId: string) => {
-    const action = getAutomationAction(actionId);
+    const action = automationActions.find((a) => a.id === actionId);
     const initialParams: Record<string, string> = {};
     action?.params.forEach((param) => {
       initialParams[param] = '';
@@ -70,18 +97,29 @@ export const AutomatedStepNodeForm: React.FC<AutomatedStepNodeFormProps> = ({
         <Label htmlFor="action">
           Action <span className="text-destructive">*</span>
         </Label>
-        <Select value={data.actionId || ''} onValueChange={handleActionChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select an action" />
-          </SelectTrigger>
-          <SelectContent>
-            {automationActions.map((action) => (
-              <SelectItem key={action.id} value={action.id}>
-                {action.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {isLoading ? (
+          <div className="flex items-center gap-2 p-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Loading actions...</span>
+          </div>
+        ) : error ? (
+          <div className="text-sm text-destructive p-2 bg-destructive/10 rounded">
+            {error}
+          </div>
+        ) : (
+          <Select value={data.actionId || ''} onValueChange={handleActionChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select an action" />
+            </SelectTrigger>
+            <SelectContent>
+              {automationActions.map((action) => (
+                <SelectItem key={action.id} value={action.id}>
+                  {action.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {selectedAction && selectedAction.params.length > 0 && (

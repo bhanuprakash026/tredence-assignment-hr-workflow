@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Play, X, AlertCircle, CheckCircle2, Loader2, FileJson } from 'lucide-react';
 import { useWorkflowStore } from '@/hooks/useWorkflowStore';
-import { simulateWorkflow } from '@/api/mockApi';
+import { simulateWorkflowAPI } from '@/api/apiClient';
 import { serializeWorkflow, exportWorkflowAsJSON } from '@/utils/serializers';
-import { validateWorkflow } from '@/utils/validators';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -26,28 +25,19 @@ export const SimulationPanel: React.FC = () => {
     errors: string[];
   } | null>(null);
 
-  const handleValidate = () => {
-    const result = validateWorkflow(nodes, edges);
-    setSimulationResult({
-      success: result.isValid,
-      steps: [],
-      errors: result.errors,
-    });
-  };
-
   const handleSimulate = async () => {
     setIsSimulating(true);
     setSimulationResult(null);
 
     try {
       const serialized = serializeWorkflow(nodes, edges);
-      const result = await simulateWorkflow(serialized);
+      const result = await simulateWorkflowAPI(serialized);
       setSimulationResult(result);
     } catch (error) {
       setSimulationResult({
         success: false,
         steps: [],
-        errors: ['Simulation failed: Unknown error'],
+        errors: ['Simulation failed: Could not connect to API. Make sure JSON Server is running on port 4000.'],
       });
     } finally {
       setIsSimulating(false);
@@ -75,9 +65,7 @@ export const SimulationPanel: React.FC = () => {
           Test Workflow
         </Button>
       </DialogTrigger>
-
-      {/* MAIN DIALOG WITH SCROLL */}
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Play className="w-5 h-5" />
@@ -85,23 +73,14 @@ export const SimulationPanel: React.FC = () => {
           </DialogTitle>
         </DialogHeader>
 
-        {/* TABS ARE NOW SCROLLABLE */}
-        <Tabs defaultValue="simulation" className="flex-1 flex flex-col overflow-y-auto">
+        <Tabs defaultValue="simulation" className="flex-1 flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="simulation">Simulation</TabsTrigger>
             <TabsTrigger value="json">JSON Export</TabsTrigger>
           </TabsList>
 
-          {/* SIMULATION TAB */}
-          <TabsContent
-            value="simulation"
-            className="flex-1 flex flex-col gap-4 overflow-y-auto"
-          >
+          <TabsContent value="simulation" className="flex-1 flex flex-col gap-4">
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleValidate} disabled={isSimulating}>
-                <AlertCircle className="w-4 h-4 mr-2" />
-                Validate
-              </Button>
               <Button onClick={handleSimulate} disabled={isSimulating}>
                 {isSimulating ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -112,11 +91,10 @@ export const SimulationPanel: React.FC = () => {
               </Button>
             </div>
 
-            {/* SCROLLABLE LOGS AREA */}
             <ScrollArea className="flex-1 border rounded-lg p-4 bg-muted/30">
               {!simulationResult && !isSimulating && (
                 <div className="text-center text-muted-foreground py-8">
-                  <p>Click "Validate" to check for errors or "Run Simulation" to test the workflow.</p>
+                  <p>Click "Run Simulation" to test your workflow.</p>
                 </div>
               )}
 
@@ -154,7 +132,10 @@ export const SimulationPanel: React.FC = () => {
                       <h4 className="font-medium text-destructive">Errors:</h4>
                       <ul className="space-y-1">
                         {simulationResult.errors.map((error, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm text-destructive">
+                          <li
+                            key={index}
+                            className="flex items-start gap-2 text-sm text-destructive"
+                          >
                             <X className="w-4 h-4 mt-0.5 flex-shrink-0" />
                             {error}
                           </li>
@@ -185,11 +166,7 @@ export const SimulationPanel: React.FC = () => {
             </ScrollArea>
           </TabsContent>
 
-          {/* JSON EXPORT TAB */}
-          <TabsContent
-            value="json"
-            className="flex-1 flex flex-col gap-4 overflow-y-auto"
-          >
+          <TabsContent value="json" className="flex-1 flex flex-col gap-4">
             <Button variant="outline" onClick={handleExportJSON} className="w-fit">
               <FileJson className="w-4 h-4 mr-2" />
               Download JSON
